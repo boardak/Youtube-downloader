@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>YouTube Downloader</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0f0f0f;
+      color: #f1f1f1;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 560px;
+      padding: 20px;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: #aaa;
+      margin-bottom: 32px;
+      font-size: 14px;
+    }
+
+    .card {
+      background: #1e1e1e;
+      border-radius: 16px;
+      padding: 28px 24px;
+      box-shadow: 0 4px 24px rgba(0,0,0,.4);
+    }
+
+    .input-row {
+      display: flex;
+      gap: 10px;
+    }
+
+    input[type="text"] {
+      flex: 1;
+      padding: 14px 16px;
+      border: 2px solid #333;
+      border-radius: 10px;
+      background: #121212;
+      color: #f1f1f1;
+      font-size: 15px;
+      outline: none;
+      transition: border-color .2s;
+    }
+
+    input[type="text"]:focus { border-color: #ff0050; }
+
+    input[type="text"]::placeholder { color: #666; }
+
+    .btn {
+      padding: 14px 24px;
+      border: none;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .2s, transform .1s;
+      white-space: nowrap;
+    }
+
+    .btn:active { transform: scale(.97); }
+
+    .btn-primary {
+      background: #ff0050;
+      color: #fff;
+    }
+
+    .btn-primary:hover { background: #e00048; }
+    .btn-primary:disabled { background: #555; cursor: not-allowed; }
+
+    .options {
+      margin-top: 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .toggle {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 14px;
+      color: #ccc;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .toggle input { display: none; }
+
+    .toggle .switch {
+      width: 38px;
+      height: 22px;
+      background: #444;
+      border-radius: 11px;
+      position: relative;
+      transition: background .2s;
+    }
+
+    .toggle .switch::after {
+      content: '';
+      position: absolute;
+      top: 3px; left: 3px;
+      width: 16px; height: 16px;
+      background: #fff;
+      border-radius: 50%;
+      transition: transform .2s;
+    }
+
+    .toggle input:checked + .switch {
+      background: #ff0050;
+    }
+
+    .toggle input:checked + .switch::after {
+      transform: translateX(16px);
+    }
+
+    /* Progress area */
+    .progress-area {
+      margin-top: 24px;
+      display: none;
+    }
+
+    .progress-area.visible { display: block; }
+
+    .status-text {
+      font-size: 14px;
+      margin-bottom: 8px;
+      color: #ccc;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 8px;
+      background: #333;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .progress-bar .fill {
+      height: 100%;
+      width: 0%;
+      background: #ff0050;
+      border-radius: 4px;
+      transition: width .3s;
+    }
+
+    .result {
+      margin-top: 16px;
+      text-align: center;
+    }
+
+    .btn-download {
+      background: #2e7d32;
+      color: #fff;
+      text-decoration: none;
+      display: inline-block;
+    }
+
+    .btn-download:hover { background: #256b28; }
+
+    .error-text {
+      color: #ff4444;
+      font-size: 14px;
+      margin-top: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>YouTube Downloader</h1>
+    <p class="subtitle">Best quality video &amp; audio</p>
+
+    <div class="card">
+      <div class="input-row">
+        <input type="text" id="url" placeholder="Paste YouTube link here..." autofocus>
+        <button class="btn btn-primary" id="goBtn" onclick="startDownload()">Download</button>
+      </div>
+
+      <div class="options">
+        <label class="toggle">
+          <input type="checkbox" id="audioOnly">
+          <span class="switch"></span>
+          Audio only (MP3)
+        </label>
+      </div>
+
+      <div class="progress-area" id="progressArea">
+        <div class="status-text" id="statusText">Starting...</div>
+        <div class="progress-bar"><div class="fill" id="progressFill"></div></div>
+        <div class="result" id="result"></div>
+        <div class="error-text" id="errorText"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const urlInput  = document.getElementById('url');
+    const goBtn     = document.getElementById('goBtn');
+    const area      = document.getElementById('progressArea');
+    const statusTxt = document.getElementById('statusText');
+    const fill      = document.getElementById('progressFill');
+    const result    = document.getElementById('result');
+    const errorTxt  = document.getElementById('errorText');
+
+    // allow pressing Enter to start
+    urlInput.addEventListener('keydown', e => { if (e.key === 'Enter') startDownload(); });
+
+    async function startDownload() {
+      const url = urlInput.value.trim();
+      if (!url) return;
+
+      // reset UI
+      goBtn.disabled = true;
+      area.classList.add('visible');
+      statusTxt.textContent = 'Starting download...';
+      fill.style.width = '0%';
+      result.innerHTML = '';
+      errorTxt.textContent = '';
+
+      const audioOnly = document.getElementById('audioOnly').checked;
+
+      try {
+        const res = await fetch('/api/download', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ url, audio_only: audioOnly })
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        pollStatus(data.task_id);
+      } catch (err) {
+        showError(err.message);
+      }
+    }
+
+    function pollStatus(taskId) {
+      const iv = setInterval(async () => {
+        try {
+          const res = await fetch(`/api/status/${taskId}`);
+          const t = await res.json();
+
+          if (t.status === 'downloading') {
+            statusTxt.textContent = `Downloading... ${t.progress}%`;
+            fill.style.width = t.progress + '%';
+          } else if (t.status === 'done') {
+            clearInterval(iv);
+            fill.style.width = '100%';
+            statusTxt.textContent = 'Done!';
+            result.innerHTML = `<a class="btn btn-download" href="/api/file/${encodeURIComponent(t.filename)}" download>Save file</a>`;
+            goBtn.disabled = false;
+          } else if (t.status === 'error') {
+            clearInterval(iv);
+            showError(t.error);
+          }
+        } catch (err) {
+          clearInterval(iv);
+          showError('Lost connection to server');
+        }
+      }, 500);
+    }
+
+    function showError(msg) {
+      statusTxt.textContent = 'Error';
+      errorTxt.textContent = msg;
+      goBtn.disabled = false;
+    }
+  </script>
+</body>
+</html>
