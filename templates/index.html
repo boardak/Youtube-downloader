@@ -251,10 +251,12 @@
     }
 
     function pollStatus(taskId) {
+      let failCount = 0;
       const iv = setInterval(async () => {
         try {
           const res = await fetch(`/api/status/${taskId}`);
           const t = await res.json();
+          failCount = 0;
 
           if (t.status === 'downloading') {
             statusTxt.textContent = `Downloading... ${t.progress}%`;
@@ -270,10 +272,13 @@
             showError(t.error);
           }
         } catch (err) {
-          clearInterval(iv);
-          showError('Lost connection to server');
+          failCount++;
+          if (failCount >= 5) {
+            clearInterval(iv);
+            showError('Lost connection to server');
+          }
         }
-      }, 500);
+      }, 1000);
     }
 
     function showError(msg) {
