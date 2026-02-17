@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """Web UI for downloading YouTube videos."""
 
+import base64
 import os
-import uuid
+import tempfile
 import threading
+import uuid
 
 from flask import Flask, render_template, request, jsonify, send_from_directory
 import yt_dlp
@@ -15,6 +17,37 @@ os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
 # In-memory task tracker: task_id -> {status, progress, filename, error}
 tasks: dict[str, dict] = {}
+
+# Path to cookies file (set via upload or env var)
+_cookies_path: str | None = None
+_cookies_lock = threading.Lock()
+
+
+def _init_cookies_from_env():
+    """Load cookies from YOUTUBE_COOKIES env var (base64-encoded cookies.txt)."""
+    global _cookies_path
+    raw = os.environ.get("YOUTUBE_COOKIES", "").strip()
+    if not raw:
+        return
+    try:
+        content = base64.b64decode(raw).decode("utf-8")
+    except Exception:
+        content = raw  # try treating it as plain text
+    _write_cookies(content)
+
+
+def _write_cookies(content: str):
+    global _cookies_path
+    with _cookies_lock:
+        if _cookies_path and os.path.exists(_cookies_path):
+            os.unlink(_cookies_path)
+        tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False)
+        tmp.write(content)
+        tmp.close()
+        _cookies_path = tmp.name
+
+
+_init_cookies_from_env()
 
 
 def _make_progress_hook(task_id: str):
@@ -41,6 +74,10 @@ def _download_task(task_id: str, url: str, audio_only: bool):
             "progress_hooks": [_make_progress_hook(task_id)],
         }
 
+        with _cookies_lock:
+            if _cookies_path and os.path.exists(_cookies_path):
+                opts["cookiefile"] = _cookies_path
+
         if audio_only:
             opts["format"] = "bestaudio/best"
             opts["postprocessors"] = [
@@ -56,13 +93,11 @@ def _download_task(task_id: str, url: str, audio_only: bool):
 
         with yt_dlp.YoutubeDL(opts) as ydl:
             info = ydl.extract_info(url, download=True)
-            # Determine the final filename on disk
             if audio_only:
                 filename = ydl.prepare_filename(info)
                 filename = os.path.splitext(filename)[0] + ".mp3"
             else:
                 filename = ydl.prepare_filename(info)
-                # after merge the extension may have changed to mp4
                 base, ext = os.path.splitext(filename)
                 if ext != ".mp4":
                     filename = base + ".mp4"
@@ -79,7 +114,7 @@ def _download_task(task_id: str, url: str, audio_only: bool):
 
 @app.route("/")
 def index():
-    return render_template("index.html")
+    return render_template("index.html", cookies_loaded=_cookies_path is not None)
 
 
 @app.route("/api/download", methods=["POST"])
@@ -110,6 +145,33 @@ def task_status(task_id: str):
 @app.route("/api/file/<filename>")
 def serve_file(filename: str):
     return send_from_directory(DOWNLOAD_DIR, filename, as_attachment=True)
+
+
+@app.route("/api/cookies", methods=["POST"])
+def upload_cookies():
+    if "file" not in request.files:
+        return jsonify({"error": "No file provided"}), 400
+    f = request.files["file"]
+    content = f.read().decode("utf-8")
+    if not content.strip():
+        return jsonify({"error": "Empty file"}), 400
+    _write_cookies(content)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/cookies", methods=["DELETE"])
+def delete_cookies():
+    global _cookies_path
+    with _cookies_lock:
+        if _cookies_path and os.path.exists(_cookies_path):
+            os.unlink(_cookies_path)
+        _cookies_path = None
+    return jsonify({"ok": True})
+
+
+@app.route("/api/cookies/status")
+def cookies_status():
+    return jsonify({"loaded": _cookies_path is not None})
 
 
 if __name__ == "__main__":

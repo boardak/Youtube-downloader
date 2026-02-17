@@ -61,7 +61,6 @@
     }
 
     input[type="text"]:focus { border-color: #ff0050; }
-
     input[type="text"]::placeholder { color: #666; }
 
     .btn {
@@ -77,11 +76,7 @@
 
     .btn:active { transform: scale(.97); }
 
-    .btn-primary {
-      background: #ff0050;
-      color: #fff;
-    }
-
+    .btn-primary { background: #ff0050; color: #fff; }
     .btn-primary:hover { background: #e00048; }
     .btn-primary:disabled { background: #555; cursor: not-allowed; }
 
@@ -123,13 +118,8 @@
       transition: transform .2s;
     }
 
-    .toggle input:checked + .switch {
-      background: #ff0050;
-    }
-
-    .toggle input:checked + .switch::after {
-      transform: translateX(16px);
-    }
+    .toggle input:checked + .switch { background: #ff0050; }
+    .toggle input:checked + .switch::after { transform: translateX(16px); }
 
     /* Progress area */
     .progress-area {
@@ -180,6 +170,92 @@
       font-size: 14px;
       margin-top: 12px;
     }
+
+    /* Cookies section */
+    .cookies-section {
+      margin-top: 20px;
+      border-top: 1px solid #2a2a2a;
+      padding-top: 16px;
+    }
+
+    .cookies-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      font-size: 13px;
+      color: #888;
+      user-select: none;
+    }
+
+    .cookies-toggle:hover { color: #ccc; }
+
+    .cookies-toggle .arrow {
+      transition: transform .2s;
+      font-size: 10px;
+    }
+
+    .cookies-toggle.open .arrow { transform: rotate(180deg); }
+
+    .cookies-body {
+      display: none;
+      margin-top: 14px;
+    }
+
+    .cookies-body.visible { display: block; }
+
+    .cookies-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      margin-bottom: 12px;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #555;
+      flex-shrink: 0;
+    }
+
+    .dot.green { background: #4caf50; }
+    .dot.red   { background: #f44336; }
+
+    .upload-area {
+      border: 2px dashed #333;
+      border-radius: 10px;
+      padding: 16px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color .2s, background .2s;
+      font-size: 13px;
+      color: #666;
+    }
+
+    .upload-area:hover { border-color: #ff0050; color: #ccc; background: #1a1a1a; }
+    .upload-area.dragover { border-color: #ff0050; background: #1a1a1a; }
+
+    .upload-area input[type="file"] { display: none; }
+
+    .cookies-hint {
+      margin-top: 10px;
+      font-size: 12px;
+      color: #555;
+      line-height: 1.5;
+    }
+
+    .cookies-hint a { color: #888; }
+
+    .btn-sm {
+      padding: 6px 14px;
+      font-size: 12px;
+      border-radius: 7px;
+    }
+
+    .btn-danger { background: #b71c1c; color: #fff; }
+    .btn-danger:hover { background: #a01616; }
   </style>
 </head>
 <body>
@@ -207,6 +283,33 @@
         <div class="result" id="result"></div>
         <div class="error-text" id="errorText"></div>
       </div>
+
+      <!-- Cookies section -->
+      <div class="cookies-section">
+        <div class="cookies-toggle" id="cookiesToggle" onclick="toggleCookies()">
+          <span>YouTube Cookies (fix bot detection)</span>
+          <span class="arrow">&#9650;</span>
+        </div>
+        <div class="cookies-body" id="cookiesBody">
+          <div class="cookies-status">
+            <span class="dot{% if cookies_loaded %} green{% endif %}" id="cookiesDot"></span>
+            <span id="cookiesStatusText">{% if cookies_loaded %}Cookies loaded{% else %}No cookies — YouTube may block downloads from servers{% endif %}</span>
+            {% if cookies_loaded %}
+            <button class="btn btn-danger btn-sm" onclick="deleteCookies()" style="margin-left:auto">Remove</button>
+            {% endif %}
+          </div>
+
+          <div class="upload-area" id="uploadArea" onclick="document.getElementById('cookiesFile').click()">
+            <input type="file" id="cookiesFile" accept=".txt" onchange="uploadCookies(this)">
+            Drop cookies.txt here or click to choose
+          </div>
+
+          <div class="cookies-hint">
+            Install <strong>Get cookies.txt LOCALLY</strong> browser extension &rarr; open YouTube &rarr; export cookies.txt &rarr; upload here.<br>
+            Or set <code>YOUTUBE_COOKIES</code> env var on Render (base64-encoded cookies.txt).
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -219,14 +322,81 @@
     const result    = document.getElementById('result');
     const errorTxt  = document.getElementById('errorText');
 
-    // allow pressing Enter to start
+
     urlInput.addEventListener('keydown', e => { if (e.key === 'Enter') startDownload(); });
+
+    // Drag-and-drop
+    const uploadArea = document.getElementById('uploadArea');
+    uploadArea.addEventListener('dragover', e => { e.preventDefault(); uploadArea.classList.add('dragover'); });
+    uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('dragover'));
+    uploadArea.addEventListener('drop', e => {
+      e.preventDefault();
+      uploadArea.classList.remove('dragover');
+      const file = e.dataTransfer.files[0];
+      if (file) uploadCookiesFile(file);
+    });
+
+    function toggleCookies() {
+      const body = document.getElementById('cookiesBody');
+      const toggle = document.getElementById('cookiesToggle');
+      body.classList.toggle('visible');
+      toggle.classList.toggle('open');
+    }
+
+    async function uploadCookies(input) {
+      const file = input.files[0];
+      if (file) await uploadCookiesFile(file);
+    }
+
+    async function uploadCookiesFile(file) {
+      const fd = new FormData();
+      fd.append('file', file);
+      try {
+        const res = await fetch('/api/cookies', { method: 'POST', body: fd });
+        const data = await res.json();
+        if (data.ok) {
+          setCookiesStatus(true);
+        } else {
+          alert('Error: ' + (data.error || 'Unknown'));
+        }
+      } catch (e) {
+        alert('Upload failed');
+      }
+    }
+
+    async function deleteCookies() {
+      await fetch('/api/cookies', { method: 'DELETE' });
+      setCookiesStatus(false);
+    }
+
+    function setCookiesStatus(loaded) {
+      const dotEl = document.getElementById('cookiesDot');
+      const txt   = document.getElementById('cookiesStatusText');
+      const section = document.querySelector('.cookies-status');
+
+      // Remove old remove button if any
+      const oldBtn = section.querySelector('.btn-danger');
+      if (oldBtn) oldBtn.remove();
+
+      if (loaded) {
+        dotEl.style.background = '#4caf50';
+        txt.textContent = 'Cookies loaded';
+        const btn = document.createElement('button');
+        btn.className = 'btn btn-danger btn-sm';
+        btn.style.marginLeft = 'auto';
+        btn.textContent = 'Remove';
+        btn.onclick = deleteCookies;
+        section.appendChild(btn);
+      } else {
+        dotEl.style.background = '#555';
+        txt.textContent = 'No cookies — YouTube may block downloads from servers';
+      }
+    }
 
     async function startDownload() {
       const url = urlInput.value.trim();
       if (!url) return;
 
-      // reset UI
       goBtn.disabled = true;
       area.classList.add('visible');
       statusTxt.textContent = 'Starting download...';
@@ -283,7 +453,14 @@
 
     function showError(msg) {
       statusTxt.textContent = 'Error';
-      errorTxt.textContent = msg;
+      // Hint about cookies if YouTube bot-detection error
+      if (msg.includes('Sign in') || msg.includes('bot') || msg.includes('cookies')) {
+        errorTxt.innerHTML = msg + '<br><br><strong>Fix:</strong> Upload your YouTube cookies using the section below.';
+        document.getElementById('cookiesBody').classList.add('visible');
+        document.getElementById('cookiesToggle').classList.add('open');
+      } else {
+        errorTxt.textContent = msg;
+      }
       goBtn.disabled = false;
     }
   </script>
