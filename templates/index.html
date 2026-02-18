@@ -112,39 +112,26 @@
 
     .error-text { color: #ff4444; font-size: 14px; margin-top: 12px; }
 
-    /* Auth section */
-    .auth-section {
+    /* Cookies section */
+    .cookies-section {
       margin-top: 20px;
       border-top: 1px solid #2a2a2a;
       padding-top: 16px;
     }
 
-    .auth-header {
+    .cookies-header {
       display: flex; align-items: center; justify-content: space-between;
       cursor: pointer; font-size: 13px; color: #888; user-select: none;
     }
 
-    .auth-header:hover { color: #ccc; }
+    .cookies-header:hover { color: #ccc; }
 
-    .auth-header .arrow { transition: transform .2s; font-size: 10px; }
-    .auth-header.open .arrow { transform: rotate(180deg); }
+    .cookies-header .arrow { transition: transform .2s; font-size: 10px; }
+    .cookies-header.open .arrow { transform: rotate(180deg); }
 
-    .auth-body { display: none; margin-top: 14px; }
-    .auth-body.visible { display: block; }
+    .cookies-body { display: none; margin-top: 14px; }
+    .cookies-body.visible { display: block; }
 
-    /* Tabs */
-    .tabs { display: flex; gap: 4px; margin-bottom: 14px; }
-
-    .tab {
-      flex: 1; padding: 8px; border: none; border-radius: 8px;
-      font-size: 13px; cursor: pointer; background: #2a2a2a; color: #888;
-      transition: background .2s, color .2s;
-    }
-
-    .tab.active { background: #333; color: #f1f1f1; }
-    .tab:hover { background: #333; color: #ccc; }
-
-    /* Status row */
     .status-row {
       display: flex; align-items: center; gap: 8px;
       font-size: 13px; margin-bottom: 12px;
@@ -157,77 +144,6 @@
 
     .dot.green { background: #4caf50; }
 
-    /* OAuth panel */
-    .oauth-panel { text-align: center; }
-
-    .btn-google {
-      display: flex; align-items: center; justify-content: center; gap: 10px;
-      width: 100%; padding: 12px 16px; border: none; border-radius: 10px;
-      background: #4285f4; color: #fff; font-size: 14px; font-weight: 600;
-      cursor: pointer; transition: background .2s;
-    }
-
-    .btn-google:hover { background: #3367d6; }
-    .btn-google:disabled { background: #555; cursor: not-allowed; }
-
-    .device-box {
-      display: none;
-      background: #121212;
-      border-radius: 10px;
-      padding: 16px;
-      margin-top: 12px;
-      text-align: center;
-    }
-
-    .device-box.visible { display: block; }
-
-    .device-box p { font-size: 13px; color: #aaa; margin-bottom: 10px; }
-
-    .device-url {
-      color: #4285f4; font-size: 14px; font-weight: 600;
-      text-decoration: none; display: block; margin-bottom: 8px;
-    }
-
-    .device-url:hover { text-decoration: underline; }
-
-    .device-code {
-      display: inline-block;
-      background: #1e1e1e;
-      border: 2px solid #333;
-      border-radius: 8px;
-      padding: 8px 20px;
-      font-size: 22px;
-      font-weight: 700;
-      letter-spacing: 4px;
-      color: #f1f1f1;
-      margin-bottom: 8px;
-    }
-
-    .device-hint { font-size: 12px; color: #555; margin-top: 6px; }
-
-    .spinner {
-      display: inline-block;
-      width: 18px; height: 18px;
-      border: 2px solid #333;
-      border-top-color: #ff0050;
-      border-radius: 50%;
-      animation: spin .7s linear infinite;
-      vertical-align: middle;
-      margin-right: 6px;
-    }
-
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    /* Connected state */
-    .connected-box {
-      display: flex; align-items: center; justify-content: space-between;
-      background: #1a2e1a; border: 1px solid #2e7d32;
-      border-radius: 10px; padding: 12px 14px; font-size: 13px;
-    }
-
-    .connected-box span { color: #81c784; }
-
-    /* Cookies panel */
     .upload-area {
       border: 2px dashed #333; border-radius: 10px; padding: 16px;
       text-align: center; cursor: pointer;
@@ -238,14 +154,14 @@
     .upload-area.dragover { border-color: #ff0050; background: #1a1a1a; }
     .upload-area input[type="file"] { display: none; }
 
-    .hint { margin-top: 10px; font-size: 12px; color: #555; line-height: 1.5; }
+    .hint { margin-top: 10px; font-size: 12px; color: #555; line-height: 1.6; }
     .hint code { color: #888; background: #1a1a1a; padding: 1px 4px; border-radius: 3px; }
+    .hint a { color: #4285f4; text-decoration: none; }
+    .hint a:hover { text-decoration: underline; }
 
     .btn-sm { padding: 6px 14px; font-size: 12px; border-radius: 7px; }
-    .btn-danger { background: #b71c1c; color: #fff; }
+    .btn-danger { background: #b71c1c; color: #fff; border: none; cursor: pointer; }
     .btn-danger:hover { background: #a01616; }
-    .btn-text { background: none; color: #666; font-size: 12px; padding: 4px 8px; }
-    .btn-text:hover { color: #ccc; }
   </style>
 </head>
 <body>
@@ -274,63 +190,38 @@
         <div class="error-text" id="errorText"></div>
       </div>
 
-      <!-- Auth section -->
-      <div class="auth-section">
-        <div class="auth-header" id="authHeader" onclick="toggleAuth()">
-          <span>Authentication (fix bot detection)</span>
+      <!-- Cookies section -->
+      <div class="cookies-section">
+        <div class="cookies-header" id="cookiesHeader" onclick="toggleCookies()">
+          <span>
+            Cookies
+            <span id="cookiesBadge" style="margin-left:6px;font-size:11px;padding:2px 7px;border-radius:10px;background:{% if cookies_loaded %}#1a3a1a;color:#81c784{% else %}#2a2a2a;color:#666{% endif %}">
+              {% if cookies_loaded %}loaded{% else %}not set{% endif %}
+            </span>
+          </span>
           <span class="arrow">&#9650;</span>
         </div>
 
-        <div class="auth-body" id="authBody">
-          <div class="tabs">
-            <button class="tab active" id="tabOAuth" onclick="switchTab('oauth')">Google OAuth</button>
-            <button class="tab" id="tabCookies" onclick="switchTab('cookies')">cookies.txt</button>
-          </div>
-
-          <!-- OAuth tab -->
-          <div id="panelOAuth">
-            {% if oauth_done %}
-            <div class="connected-box" id="connectedBox">
-              <span>&#10003; Connected with Google</span>
-              <button class="btn btn-text" onclick="resetOAuth()">Disconnect</button>
-            </div>
-            {% else %}
-            <div id="connectedBox" style="display:none" class="connected-box">
-              <span>&#10003; Connected with Google</span>
-              <button class="btn btn-text" onclick="resetOAuth()">Disconnect</button>
-            </div>
-            <button class="btn btn-google" id="oauthBtn" onclick="startOAuth()">
-              <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20H24v8h11.3C33.6 33.3 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.8 1.1 7.9 3l5.7-5.7C34.1 6.5 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20c11 0 19.6-8 19.6-20 0-1.3-.1-2.7-.4-4z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.5 15.1 18.9 12 24 12c3 0 5.8 1.1 7.9 3l5.7-5.7C34.1 6.5 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-1.9 13.5-5l-6.2-5.2C29.4 35.6 26.8 36.5 24 36.5c-5.2 0-9.6-3.5-11.2-8.3l-6.5 5C9.7 39.7 16.3 44 24 44z"/><path fill="#1976D2" d="M43.6 20H24v8h11.3c-1 2.7-2.8 5-5.2 6.5l6.2 5.2C40 36.2 44 30.5 44 24c0-1.3-.1-2.7-.4-4z"/></svg>
-              Connect Google Account
-            </button>
-            <div class="device-box" id="deviceBox">
-              <p>Open the link below on any device and enter the code:</p>
-              <a class="device-url" id="deviceUrl" href="#" target="_blank">loading...</a>
-              <div class="device-code" id="deviceCode">----</div>
-              <div class="device-hint"><span class="spinner"></span> Waiting for authorization...</div>
-            </div>
+        <div class="cookies-body" id="cookiesBody">
+          <div class="status-row">
+            <span class="dot{% if cookies_loaded %} green{% endif %}" id="cookiesDot"></span>
+            <span id="cookiesStatusText">{% if cookies_loaded %}Cookies active — age-restricted and private videos work{% else %}No cookies — only public videos{% endif %}</span>
+            {% if cookies_loaded %}
+            <button class="btn btn-danger btn-sm" id="deleteBtn" onclick="deleteCookies()" style="margin-left:auto">Remove</button>
             {% endif %}
           </div>
 
-          <!-- Cookies tab -->
-          <div id="panelCookies" style="display:none">
-            <div class="status-row">
-              <span class="dot{% if cookies_loaded %} green{% endif %}" id="cookiesDot"></span>
-              <span id="cookiesStatusText">{% if cookies_loaded %}Cookies loaded{% else %}No cookies{% endif %}</span>
-              {% if cookies_loaded %}
-              <button class="btn btn-danger btn-sm" onclick="deleteCookies()" style="margin-left:auto">Remove</button>
-              {% endif %}
-            </div>
+          <div class="upload-area" id="uploadArea" onclick="document.getElementById('cookiesFile').click()">
+            <input type="file" id="cookiesFile" accept=".txt" onchange="uploadCookies(this)">
+            Drop cookies.txt here or click to choose
+          </div>
 
-            <div class="upload-area" id="uploadArea" onclick="document.getElementById('cookiesFile').click()">
-              <input type="file" id="cookiesFile" accept=".txt" onchange="uploadCookies(this)">
-              Drop cookies.txt here or click to choose
-            </div>
-
-            <div class="hint">
-              Install <strong>Get cookies.txt LOCALLY</strong> &rarr; open YouTube &rarr; export &rarr; upload here.<br>
-              Or set <code>YOUTUBE_COOKIES</code> env var on Render (base64-encoded).
-            </div>
+          <div class="hint">
+            <strong>How to get cookies.txt:</strong><br>
+            1. Install <a href="https://chromewebstore.google.com/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc" target="_blank">Get cookies.txt LOCALLY</a> in Chrome<br>
+            2. Open <a href="https://youtube.com" target="_blank">youtube.com</a> while logged in<br>
+            3. Click the extension → <strong>Export</strong> → upload the file here<br><br>
+            Or set the <code>YOUTUBE_COOKIES</code> environment variable (base64-encoded) on Render.
           </div>
         </div>
       </div>
@@ -348,87 +239,10 @@
 
     urlInput.addEventListener('keydown', e => { if (e.key === 'Enter') startDownload(); });
 
-    // ── Auth section toggle ──────────────────────────────────────────
-
-    function toggleAuth() {
-      document.getElementById('authBody').classList.toggle('visible');
-      document.getElementById('authHeader').classList.toggle('open');
+    function toggleCookies() {
+      document.getElementById('cookiesBody').classList.toggle('visible');
+      document.getElementById('cookiesHeader').classList.toggle('open');
     }
-
-    function switchTab(name) {
-      document.getElementById('panelOAuth').style.display   = name === 'oauth'   ? '' : 'none';
-      document.getElementById('panelCookies').style.display = name === 'cookies' ? '' : 'none';
-      document.getElementById('tabOAuth').classList.toggle('active',   name === 'oauth');
-      document.getElementById('tabCookies').classList.toggle('active', name === 'cookies');
-    }
-
-    // ── OAuth2 ───────────────────────────────────────────────────────
-
-    let oauthPollIv = null;
-
-    async function startOAuth() {
-      document.getElementById('oauthBtn').disabled = true;
-      const res = await fetch('/api/auth/start', { method: 'POST' });
-      const data = await res.json();
-      if (data.error) {
-        alert(data.error);
-        document.getElementById('oauthBtn').disabled = false;
-        return;
-      }
-      oauthPollIv = setInterval(pollOAuth, 1500);
-    }
-
-    async function pollOAuth() {
-      try {
-        const res  = await fetch('/api/auth/status');
-        const data = await res.json();
-
-        if (data.status === 'waiting_user' && data.device_url) {
-          const box  = document.getElementById('deviceBox');
-          const link = document.getElementById('deviceUrl');
-          box.classList.add('visible');
-          link.href        = data.device_url;
-          link.textContent = data.device_url;
-          if (data.device_code) {
-            document.getElementById('deviceCode').textContent = data.device_code;
-          }
-        }
-
-        if (data.status === 'done') {
-          clearInterval(oauthPollIv);
-          showConnected();
-        } else if (data.status === 'error') {
-          clearInterval(oauthPollIv);
-          document.getElementById('oauthBtn').disabled = false;
-          document.getElementById('deviceBox').classList.remove('visible');
-          alert('OAuth error: ' + data.error);
-        }
-      } catch (_) { /* retry next tick */ }
-    }
-
-    function showConnected() {
-      document.getElementById('connectedBox').style.display = 'flex';
-      const btn = document.getElementById('oauthBtn');
-      if (btn) btn.style.display = 'none';
-      document.getElementById('deviceBox').classList.remove('visible');
-    }
-
-    async function resetOAuth() {
-      await fetch('/api/auth/reset', { method: 'POST' });
-      document.getElementById('connectedBox').style.display = 'none';
-      const btn = document.getElementById('oauthBtn');
-      if (btn) { btn.style.display = ''; btn.disabled = false; }
-    }
-
-    // Resume polling if OAuth was in progress when page loaded
-    (async () => {
-      const res  = await fetch('/api/auth/status');
-      const data = await res.json();
-      if (data.status === 'starting' || data.status === 'waiting_user') {
-        oauthPollIv = setInterval(pollOAuth, 1500);
-        if (data.device_url) pollOAuth(); // show immediately
-      }
-    })();
 
     // ── Cookies ──────────────────────────────────────────────────────
 
@@ -464,18 +278,26 @@
     }
 
     function setCookiesStatus(loaded) {
-      document.getElementById('cookiesDot').style.background = loaded ? '#4caf50' : '#555';
-      document.getElementById('cookiesStatusText').textContent = loaded ? 'Cookies loaded' : 'No cookies';
-      const section = document.querySelector('.status-row');
-      const oldBtn  = section.querySelector('.btn-danger');
+      document.getElementById('cookiesDot').className = 'dot' + (loaded ? ' green' : '');
+      document.getElementById('cookiesStatusText').textContent = loaded
+        ? 'Cookies active — age-restricted and private videos work'
+        : 'No cookies — only public videos';
+
+      const badge = document.getElementById('cookiesBadge');
+      badge.textContent = loaded ? 'loaded' : 'not set';
+      badge.style.background = loaded ? '#1a3a1a' : '#2a2a2a';
+      badge.style.color      = loaded ? '#81c784' : '#666';
+
+      const oldBtn = document.getElementById('deleteBtn');
       if (oldBtn) oldBtn.remove();
       if (loaded) {
         const btn = document.createElement('button');
+        btn.id          = 'deleteBtn';
         btn.className   = 'btn btn-danger btn-sm';
         btn.style.marginLeft = 'auto';
         btn.textContent = 'Remove';
         btn.onclick     = deleteCookies;
-        section.appendChild(btn);
+        document.querySelector('.status-row').appendChild(btn);
       }
     }
 
@@ -537,10 +359,11 @@
 
     function showError(msg) {
       statusTxt.textContent = 'Error';
-      if (msg.includes('Sign in') || msg.includes('bot') || msg.includes('cookies')) {
-        errorTxt.innerHTML = msg + '<br><br><strong>Fix:</strong> Connect your Google account or upload cookies.txt below.';
-        document.getElementById('authBody').classList.add('visible');
-        document.getElementById('authHeader').classList.add('open');
+      if (msg.includes('Sign in') || msg.includes('bot') || msg.includes('cookies')
+          || msg.includes('age') || msg.includes('confirm')) {
+        errorTxt.innerHTML = msg + '<br><br><strong>Fix:</strong> Upload cookies.txt from a logged-in YouTube session.';
+        document.getElementById('cookiesBody').classList.add('visible');
+        document.getElementById('cookiesHeader').classList.add('open');
       } else {
         errorTxt.textContent = msg;
       }

@@ -3,7 +3,6 @@
 
 import base64
 import os
-import re
 import tempfile
 import threading
 import uuid
@@ -14,7 +13,6 @@ import yt_dlp
 app = Flask(__name__)
 
 DOWNLOAD_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "downloads")
-OAUTH_DONE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".oauth_done")
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
 # In-memory task tracker: task_id -> {status, progress, filename, error}
@@ -50,70 +48,6 @@ def _write_cookies(content: str):
 
 _init_cookies_from_env()
 
-# ── OAuth2 ────────────────────────────────────────────────────────────
-
-_oauth_state: dict = {
-    "status": "idle",   # idle | starting | waiting_user | done | error
-    "device_url": None,
-    "device_code": None,
-    "error": None,
-}
-_oauth_lock = threading.Lock()
-
-# Restore OAuth done state across restarts (file survives in same container)
-if os.path.exists(OAUTH_DONE_FILE):
-    _oauth_state["status"] = "done"
-
-
-class _OAuthLogger:
-    """yt-dlp logger that captures the OAuth device-auth URL and code."""
-
-    def debug(self, msg):
-        self._scan(msg)
-
-    def warning(self, msg):
-        self._scan(msg)
-
-    def error(self, msg):
-        pass
-
-    def _scan(self, msg):
-        url_m = re.search(r'(https?://[^\s,]+(?:device|/d(?:evice)?)[^\s,]*)', msg, re.I)
-        code_m = re.search(r'(?:enter\s+(?:the\s+)?code|code)\s*[:\s]+([A-Z0-9]{4}-[A-Z0-9]{4,})', msg, re.I)
-        with _oauth_lock:
-            if url_m and not _oauth_state["device_url"]:
-                _oauth_state["device_url"] = url_m.group(1)
-            if code_m and not _oauth_state["device_code"]:
-                _oauth_state["device_code"] = code_m.group(1)
-            if _oauth_state["device_url"] or _oauth_state["device_code"]:
-                _oauth_state["status"] = "waiting_user"
-
-
-def _run_oauth_thread():
-    with _oauth_lock:
-        _oauth_state.update({"status": "starting", "device_url": None,
-                             "device_code": None, "error": None})
-    logger = _OAuthLogger()
-    try:
-        opts = {
-            "username": "oauth2",
-            "password": "",
-            "logger": logger,
-            "quiet": False,
-            "verbose": True,
-        }
-        with yt_dlp.YoutubeDL(opts) as ydl:
-            # Trigger login flow; download=False so no video is downloaded
-            ydl.extract_info("https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-                             download=False)
-        with _oauth_lock:
-            _oauth_state["status"] = "done"
-        open(OAUTH_DONE_FILE, "w").close()
-    except Exception as exc:
-        with _oauth_lock:
-            _oauth_state["status"] = "error"
-            _oauth_state["error"] = str(exc)
-
 # ── Download ──────────────────────────────────────────────────────────
 
 def _make_progress_hook(task_id: str):
@@ -138,14 +72,12 @@ def _download_task(task_id: str, url: str, audio_only: bool):
             "progress_hooks": [_make_progress_hook(task_id)],
         }
 
-        # Auth: OAuth2 takes priority over cookies
-        if os.path.exists(OAUTH_DONE_FILE):
-            opts["username"] = "oauth2"
-            opts["password"] = ""
-        else:
-            with _cookies_lock:
-                if _cookies_path and os.path.exists(_cookies_path):
-                    opts["cookiefile"] = _cookies_path
+        # Use iOS player client — avoids bot detection without cookies for most videos
+        opts["extractor_args"] = {"youtube": {"player_client": ["ios", "web"]}}
+
+        with _cookies_lock:
+            if _cookies_path and os.path.exists(_cookies_path):
+                opts["cookiefile"] = _cookies_path
 
         if audio_only:
             opts["format"] = "bestaudio/best"
@@ -177,11 +109,7 @@ def _download_task(task_id: str, url: str, audio_only: bool):
 
 @app.route("/")
 def index():
-    with _oauth_lock:
-        oauth_done = _oauth_state["status"] == "done"
-    return render_template("index.html",
-                           cookies_loaded=_cookies_path is not None,
-                           oauth_done=oauth_done)
+    return render_template("index.html", cookies_loaded=_cookies_path is not None)
 
 
 @app.route("/api/download", methods=["POST"])
@@ -235,32 +163,6 @@ def delete_cookies():
 @app.route("/api/cookies/status")
 def cookies_status():
     return jsonify({"loaded": _cookies_path is not None})
-
-
-# OAuth endpoints
-@app.route("/api/auth/start", methods=["POST"])
-def start_oauth():
-    with _oauth_lock:
-        if _oauth_state["status"] in ("starting", "waiting_user"):
-            return jsonify({"error": "Already in progress"}), 400
-    threading.Thread(target=_run_oauth_thread, daemon=True).start()
-    return jsonify({"ok": True})
-
-
-@app.route("/api/auth/status")
-def oauth_status():
-    with _oauth_lock:
-        return jsonify(dict(_oauth_state))
-
-
-@app.route("/api/auth/reset", methods=["POST"])
-def reset_oauth():
-    with _oauth_lock:
-        _oauth_state.update({"status": "idle", "device_url": None,
-                             "device_code": None, "error": None})
-    if os.path.exists(OAUTH_DONE_FILE):
-        os.unlink(OAUTH_DONE_FILE)
-    return jsonify({"ok": True})
 
 
 if __name__ == "__main__":
